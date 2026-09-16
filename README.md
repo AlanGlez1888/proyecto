@@ -1,4 +1,4 @@
-# Frontend (Vue) — proyecto de red social para maestros
+# Frontend (Vue) — proyecto de red social
 
 Este es el arranque del frontend en Vue 3 + Vite, con páginas de ejemplo
 (datos falsos, sin conexión al backend todavía).
