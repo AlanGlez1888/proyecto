@@ -14,7 +14,7 @@
     <h2>Comentarios</h2>
     <div class="feed">
       <PostCard v-for="post in comments" :key="post.id" :post="post" />
-      <p v-if="comments.length === 0" class="empty">Aún no hay comentarios sobre este maestro.</p>
+      <EmptyState v-if="comments.length === 0" message="Aún no hay comentarios sobre este maestro." />
     </div>
   </section>
 </template>
@@ -23,6 +23,7 @@
 import { computed } from 'vue'
 import RatingStars from '../components/RatingStars.vue'
 import PostCard from '../components/PostCard.vue'
+import EmptyState from '../components/EmptyState.vue'
 import { teachers, posts } from '../data/mockData.js'
 import { colorForSubject, initialsFor } from '../utils/subjectColor.js'
 

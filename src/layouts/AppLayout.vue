@@ -20,6 +20,9 @@ import RightSidebar from '../components/RightSidebar.vue'
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background:
+    radial-gradient(900px 500px at 100% -10%, rgba(79, 195, 247, 0.08), transparent 60%),
+    var(--paper);
 }
 .body {
   flex: 1;

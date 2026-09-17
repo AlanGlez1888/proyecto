@@ -1,8 +1,8 @@
 <template>
   <section class="auth-screen">
     <div class="card">
-      <span class="brand">{{ APP_NAME }}</span>
-      <p class="tagline">Inicia sesión para ver el muro de tu comunidad</p>
+      <AppLogo :size="40" class="brand" />
+      <p class="tagline">{{ APP_TAGLINE }} — inicia sesión para ver el muro de tu comunidad</p>
       <form @submit.prevent="onSubmit">
         <label>
           Correo
@@ -25,7 +25,8 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { APP_NAME } from '../config.js'
+import { APP_TAGLINE } from '../config.js'
+import AppLogo from '../components/AppLogo.vue'
 
 const email = ref('')
 const password = ref('')
@@ -57,12 +58,10 @@ function onSubmit() {
   box-shadow: 0 20px 50px rgba(13, 27, 62, 0.25);
 }
 .brand {
-  display: block;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.6rem;
-  color: var(--navy);
+  display: inline-flex;
+  --logo-text-color: var(--navy);
 }
+.brand :deep(.logo-accent) { color: var(--blue-500); }
 .tagline { color: var(--slate); margin: 0.4rem 0 1.75rem; font-size: 0.9rem; }
 form { display: flex; flex-direction: column; gap: 1rem; }
 label { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.88rem; color: var(--slate); }

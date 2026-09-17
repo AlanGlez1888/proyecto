@@ -13,7 +13,7 @@
         <span class="status" :class="{ online: f.online }">{{ f.online ? 'En línea' : 'Desconectado' }}</span>
       </li>
     </ul>
-    <p v-if="filtered.length === 0" class="empty">No encontramos amigos con ese nombre.</p>
+    <EmptyState v-if="filtered.length === 0" message="No encontramos amigos con ese nombre." />
   </section>
 </template>
 
@@ -22,6 +22,7 @@ import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { friends } from '../data/mockData.js'
 import { initialsFor, colorForSubject } from '../utils/subjectColor.js'
+import EmptyState from '../components/EmptyState.vue'
 
 const route = useRoute()
 const query = ref(typeof route.query.q === 'string' ? route.query.q : '')

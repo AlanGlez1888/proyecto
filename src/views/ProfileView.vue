@@ -11,16 +11,26 @@
 
     <div class="stats">
       <div class="stat">
-        <span class="num">{{ myPosts.length }}</span>
+        <span class="num">{{ animatedPosts }}</span>
         <span class="label">Opiniones publicadas</span>
       </div>
       <div class="stat">
-        <span class="num">{{ myItems.length }}</span>
+        <span class="num">{{ animatedItems }}</span>
         <span class="label">Artículos en marketplace</span>
       </div>
       <div class="stat">
         <span class="num">{{ avgRating }}</span>
         <span class="label">Calificación promedio dada</span>
+      </div>
+    </div>
+
+    <div v-if="badges.length" class="badges">
+      <h2>Logros</h2>
+      <div class="badge-row">
+        <div v-for="b in badges" :key="b.label" class="badge-chip">
+          <span class="badge-title">{{ b.label }}</span>
+          <span class="badge-desc">{{ b.desc }}</span>
+        </div>
       </div>
     </div>
 
@@ -51,7 +61,7 @@
       <div class="activity">
         <h2>Mis publicaciones</h2>
         <PostCard v-for="post in myPosts" :key="post.id" :post="post" />
-        <p v-if="myPosts.length === 0" class="empty">Aún no has publicado opiniones.</p>
+        <EmptyState v-if="myPosts.length === 0" message="Aún no has publicado opiniones." />
 
         <h2>Mis artículos en marketplace</h2>
         <div class="mini-items">
@@ -61,18 +71,22 @@
             <span class="price">{{ item.type === 'venta' ? `$${item.price}` : 'Renta' }}</span>
           </div>
         </div>
-        <p v-if="myItems.length === 0" class="empty">Aún no has publicado artículos.</p>
+        <EmptyState v-if="myItems.length === 0" message="Aún no has publicado artículos." />
       </div>
     </div>
   </section>
 </template>
 
 <script setup>
-import { reactive, ref, computed } from 'vue'
+import { reactive, ref, computed, onMounted } from 'vue'
 import { currentUser } from '../data/currentUser.js'
 import { posts, marketplaceItems } from '../data/mockData.js'
 import PostCard from '../components/PostCard.vue'
+import EmptyState from '../components/EmptyState.vue'
 import { initialsFor, colorForSubject } from '../utils/subjectColor.js'
+import { useToast } from '../composables/useToast.js'
+
+const { show } = useToast()
 
 const form = reactive({ ...currentUser })
 const editing = ref(false)
@@ -86,9 +100,36 @@ const avgRating = computed(() => {
   return (total / myPosts.value.length).toFixed(1)
 })
 
+const badges = computed(() => {
+  const list = []
+  if (myPosts.value.length >= 1) list.push({ label: 'Primera opinión', desc: 'Publicaste tu primera opinión sobre un maestro' })
+  if (myPosts.value.length >= 3) list.push({ label: 'Voz activa', desc: 'Ya llevas 3 o más opiniones publicadas' })
+  if (myItems.value.length >= 1) list.push({ label: 'Emprendedor', desc: 'Publicaste tu primer artículo en el marketplace' })
+  return list
+})
+
+const animatedPosts = ref(0)
+const animatedItems = ref(0)
+
+function animateValue(targetRef, target, duration = 600) {
+  const start = performance.now()
+  function step(now) {
+    const progress = Math.min((now - start) / duration, 1)
+    targetRef.value = Math.round(progress * target)
+    if (progress < 1) requestAnimationFrame(step)
+  }
+  requestAnimationFrame(step)
+}
+
+onMounted(() => {
+  animateValue(animatedPosts, myPosts.value.length)
+  animateValue(animatedItems, myItems.value.length)
+})
+
 function save() {
   Object.assign(currentUser, form)
   editing.value = false
+  show('Perfil actualizado')
 }
 function cancel() {
   Object.assign(form, currentUser)
@@ -133,6 +174,19 @@ function cancel() {
 .stat { display: flex; flex-direction: column; }
 .num { font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; color: var(--blue-500); }
 .label { font-size: 0.78rem; color: var(--slate); margin-top: 0.15rem; }
+
+.badges { margin-bottom: 1.75rem; }
+.badges h2 { margin-top: 0; }
+.badge-row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.badge-chip {
+  background: linear-gradient(135deg, rgba(79, 195, 247, 0.14), rgba(21, 101, 192, 0.08));
+  border: 1px solid rgba(21, 101, 192, 0.18);
+  border-radius: 10px;
+  padding: 0.7rem 1rem;
+  min-width: 190px;
+}
+.badge-title { display: block; font-weight: 700; color: var(--navy); font-size: 0.88rem; }
+.badge-desc { display: block; font-size: 0.76rem; color: var(--slate); margin-top: 0.2rem; }
 
 .columns { display: grid; grid-template-columns: 300px 1fr; gap: 2rem; align-items: start; }
 .card { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 1.5rem; }
