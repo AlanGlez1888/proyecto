@@ -6,14 +6,16 @@
       <form @submit.prevent="onSubmit">
         <label>
           Correo
-          <input v-model="email" type="email" required />
+          <input v-model="correo" type="email" required />
         </label>
         <label>
           Contraseña
-          <input v-model="password" type="password" required />
+          <input v-model="contrasena" type="password" required />
         </label>
         <p v-if="error" class="error">{{ error }}</p>
-        <button type="submit">Entrar</button>
+        <button type="submit" :disabled="loading">
+          {{ loading ? 'Entrando...' : 'Entrar' }}
+        </button>
       </form>
       <p class="switch">
         ¿No tienes cuenta? <router-link to="/registro">Regístrate</router-link>
@@ -27,15 +29,52 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { APP_NAME } from '../config.js'
 
-const email = ref('')
-const password = ref('')
+// Variables del formulario (coinciden con el template)
+const correo = ref('')
+const contrasena = ref('')
 const error = ref('')
+const loading = ref(false)
 const router = useRouter()
 
-function onSubmit() {
-  // Aquí se conectará con el backend (Node.js) más adelante
+async function onSubmit() {
   error.value = ''
-  router.push({ name: 'home' })
+  loading.value = true
+
+  try {
+    // Hacemos la petición al backend
+    const response = await fetch('http://localhost:3000/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        correo: correo.value,        
+        contrasena: contrasena.value 
+      })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Error al iniciar sesión')
+    }
+
+    // Guardamos el token y el usuario en localStorage
+    localStorage.setItem('token', data.token)
+    localStorage.setItem('user', JSON.stringify(data.user))
+
+    // Redirigimos según el rol (opcional)
+    if (data.user.rol === 'Administrador') {
+      router.push({ name: 'admin' }) // Asumiendo que tienes esta ruta
+    } else {
+      router.push({ name: 'home' })
+    }
+
+  } catch (err) {
+    error.value = err.message
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -72,7 +111,7 @@ input {
   border-radius: 8px;
   font-family: var(--font-body);
 }
-input:focus { border-color: var(--blue-500); }
+input:focus { border-color: var(--blue-500); outline: none; }
 button {
   padding: 0.7rem;
   background: var(--blue-500);
@@ -87,4 +126,8 @@ button:hover { background: var(--navy-soft); }
 .error { color: #c0392b; font-size: 0.85rem; margin: 0; }
 .switch { margin-top: 1.25rem; font-size: 0.85rem; color: var(--slate); text-align: center; }
 .switch a { color: var(--blue-500); font-weight: 500; }
+button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
 </style>
