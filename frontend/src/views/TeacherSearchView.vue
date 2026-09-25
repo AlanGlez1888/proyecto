@@ -23,7 +23,7 @@
         </router-link>
       </li>
     </ul>
-    <p v-if="filtered.length === 0" class="empty">No encontramos maestros con esos filtros.</p>
+    <EmptyState v-if="filtered.length === 0" message="No encontramos maestros con esos filtros." />
   </section>
 </template>
 
@@ -31,6 +31,7 @@
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import RatingStars from '../components/RatingStars.vue'
+import EmptyState from '../components/EmptyState.vue'
 import { teachers } from '../data/mockData.js'
 import { colorForSubject, initialsFor } from '../utils/subjectColor.js'
 

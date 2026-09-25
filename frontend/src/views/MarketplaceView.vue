@@ -37,14 +37,17 @@
       <article v-for="item in filteredItems" :key="item.id" class="item">
         <div class="item-bar" :style="{ background: colorForSubject(item.subject) }"></div>
         <div class="item-body">
-          <span class="subject" :style="{ color: colorForSubject(item.subject) }">{{ item.subject }}</span>
+          <div class="item-top">
+            <span class="subject" :style="{ color: colorForSubject(item.subject) }">{{ item.subject }}</span>
+            <span v-if="item.isNew" class="new-badge">Nuevo</span>
+          </div>
           <h3>{{ item.title }}</h3>
           <p class="meta">{{ item.condition }} · {{ item.seller }}</p>
           <span class="price">{{ item.type === 'venta' ? `$${item.price} MXN` : 'Disponible en renta' }}</span>
         </div>
       </article>
     </div>
-    <p v-if="filteredItems.length === 0" class="empty">No hay artículos que coincidan con tu búsqueda.</p>
+    <EmptyState v-if="filteredItems.length === 0" message="No hay artículos que coincidan con tu búsqueda." />
   </section>
 </template>
 
@@ -53,6 +56,10 @@ import { ref, reactive, computed } from 'vue'
 import { marketplaceItems } from '../data/mockData.js'
 import { currentUser } from '../data/currentUser.js'
 import { colorForSubject } from '../utils/subjectColor.js'
+import { useToast } from '../composables/useToast.js'
+import EmptyState from '../components/EmptyState.vue'
+
+const { show } = useToast()
 
 const query = ref('')
 const typeFilter = ref('todos')
@@ -67,15 +74,23 @@ const typeOptions = [
 const draft = reactive({ title: '', subject: '', condition: 'Buen estado', type: 'venta', price: 0 })
 
 function publish() {
+  const id = Date.now()
   marketplaceItems.unshift({
-    id: Date.now(),
+    id,
     title: draft.title.trim(),
     subject: draft.subject.trim(),
     condition: draft.condition,
     type: draft.type,
     price: draft.type === 'venta' ? Number(draft.price) || 0 : 0,
-    seller: currentUser.name
+    seller: currentUser.name,
+    isNew: true
   })
+  show('¡Artículo publicado en el marketplace!')
+  setTimeout(() => {
+    const item = marketplaceItems.find(i => i.id === id)
+    if (item) item.isNew = false
+  }, 5000)
+
   draft.title = ''
   draft.subject = ''
   draft.condition = 'Buen estado'
@@ -162,12 +177,27 @@ const filteredItems = computed(() => {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 1.25rem;
 }
-.item { background: var(--white); border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+.item {
+  background: var(--white);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.item:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(13, 27, 62, 0.12); }
 .item-bar { height: 5px; }
 .item-body { padding: 1rem 1.1rem 1.2rem; }
+.item-top { display: flex; align-items: center; justify-content: space-between; }
+.new-badge {
+  background: var(--amber);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+}
 .item-body h3 { font-family: var(--font-display); font-size: 1rem; margin: 0.3rem 0 0.3rem; color: var(--ink); }
 .subject { font-size: 0.75rem; font-weight: 600; }
 .meta { color: var(--slate); font-size: 0.85rem; margin: 0 0 0.6rem; }
 .price { font-weight: 600; color: var(--navy); }
-.empty { color: var(--slate); margin-top: 1.5rem; }
 </style>

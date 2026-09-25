@@ -9,10 +9,17 @@ const register = async (req, res) => {
     const connection = await db.getConnection();
 
     try {
-        const { nombre, apellido_paterno, apellido_materno, id_carrera, semestre, correo, contraseña } = req.body;
-        
+        const { nombre, apellido_paterno, apellido_materno, id_carrera, semestre, correo, contrasena } = req.body;
+
+        console.log('=== REGISTER ===');
+        console.log('Body completo:', req.body);
+        console.log('Contraseña recibida:', contrasena);
+        console.log('Tipo:', typeof contrasena);
+        console.log('¿Es undefined?', contrasena === undefined);
+        console.log('================');
+
         // Verificar campos obligatorios
-        if (!nombre || !apellido_paterno || !id_carrera || !semestre || !correo || !contraseña) {
+        if (!nombre || !apellido_paterno || !id_carrera || !semestre || !correo || !contrasena) {
             return res.status(400).json({ message: 'Todos los campos obligatorios son requeridos' });
         }
 
@@ -27,11 +34,11 @@ const register = async (req, res) => {
 
         // Encriptar la contraseña
         const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(contraseña, salt);
+        const hashedPassword = await bcrypt.hash(contrasena, salt);
 
         // 1. Insertar en tabla usuario
         const [userResult] = await connection.query(
-            'INSERT INTO usuario (Correo, Contraseña, Rol) VALUES (?, ?, ?)', 
+            'INSERT INTO usuario (Correo, Contrasena, Rol) VALUES (?, ?, ?)', 
             [correo, hashedPassword, 'Alumno']
         );
 
@@ -58,15 +65,30 @@ const register = async (req, res) => {
 const login = async (req, res) => {
     const { correo, contrasena } = req.body;
 
+    console.log('=== LOGIN ===');
+    console.log('Body:', req.body);
+    console.log('Contraseña enviada:', contrasena);
+
     try {
         // Buscar usuario en la base de datos
         const usuario = await Usuario.findByCorreo(correo);
+
+        console.log('Usuario encontrado:', usuario ? 'SÍ' : 'NO');
+        if (usuario) {
+            console.log('Hash en BD:', usuario.contrasena);
+            console.log('Contraseña que intento:', contrasena);
+        }
+
         if (!usuario) {
             return res.status(401).json({ message: 'Correo o contraseña incorrectos' });
         }
 
-        // Comparar contraseña con el campo Contraseña de la BD
-        const isMatch = await bcrypt.compare(contrasena, usuario.Contraseña);
+        // Comparar contraseña con el campo de la BD (que se llama 'contrasena')
+        const isMatch = await bcrypt.compare(contrasena, usuario.contrasena);
+
+        console.log('¿Coincide la contraseña?', isMatch);
+        console.log('=============');
+
         if (!isMatch) {
             return res.status(401).json({ message: 'Correo o contraseña incorrectos' });
         }
@@ -83,7 +105,7 @@ const login = async (req, res) => {
             token,
             user: {
                 id: usuario.ID_Usuario,
-                correo: usuario.Correo,
+                correo: usuario.correo,
                 rol: usuario.Rol
             }
         });

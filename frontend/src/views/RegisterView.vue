@@ -1,6 +1,7 @@
 <template>
   <section class="auth-screen">
     <div class="card">
+      <AppLogo :size="40" class="brand" />
       <span class="brand">{{ APP_NAME }}</span>
       <p class="tagline">Crea tu cuenta con tu carrera y semestre</p>
       
@@ -43,7 +44,7 @@
         </label>
         <label>
           Contraseña
-          <input v-model="form.contraseña" type="password" required />
+          <input v-model="form.contrasena" type="password" required />
         </label>
 
         <!-- Mensajes de estado -->
@@ -77,7 +78,7 @@ const form = ref({
   id_carrera: '',
   semestre: '',
   correo: '',
-  contraseña: ''
+  contrasena: ''
 })
 
 // Variables para las carreras
@@ -159,12 +160,15 @@ async function onSubmit() {
   box-shadow: 0 20px 50px rgba(13, 27, 62, 0.25);
 }
 .brand {
-  display: block;
+  display: inline-flex;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 1.6rem;
   color: var(--navy);
+  --logo-text-color: var(--navy);
 }
+.brand :deep(.logo-accent) { color: var(--blue-500); }
+
 .tagline { color: var(--slate); margin: 0.4rem 0 1.75rem; font-size: 0.9rem; }
 form { display: flex; flex-direction: column; gap: 1rem; }
 label { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.88rem; color: var(--slate); }
