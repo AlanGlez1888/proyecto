@@ -1,5 +1,5 @@
 <template>
-  <section class="page">
+  <section class="page" v-if="usuario">
     <div class="banner"></div>
     <div class="header">
       <span class="avatar-lg">{{ initials }}</span>
@@ -42,8 +42,12 @@
             <div class="row"><dt>Carrera</dt><dd>{{ form.career }}</dd></div>
             <div class="row"><dt>Semestre</dt><dd>{{ form.semester }}</dd></div>
             <div class="row"><dt>Correo</dt><dd>{{ form.email }}</dd></div>
+            <div class="row"><dt>Rol</dt><dd>{{ usuario.rol }}</dd></div>
           </dl>
           <button class="edit" @click="editing = true">Editar perfil</button>
+          
+          <!-- Botón de Cerrar Sesión agregado -->
+          <button class="logout" @click="logout">Cerrar sesión</button>
         </template>
 
         <form v-else @submit.prevent="save">
@@ -79,21 +83,35 @@
 
 <script setup>
 import { reactive, ref, computed, onMounted } from 'vue'
-import { currentUser } from '../data/currentUser.js'
-import { posts, marketplaceItems } from '../data/mockData.js'
+import { useRouter } from 'vue-router'
 import PostCard from '../components/PostCard.vue'
 import EmptyState from '../components/EmptyState.vue'
+
+// Importaciones de tu entorno (asumo que existen en tu proyecto)
+import { posts, marketplaceItems } from '../data/mockData.js'
 import { initialsFor, colorForSubject } from '../utils/subjectColor.js'
-import { useToast } from '../composables/useToast.js'
+// import { useToast } from '../composables/useToast.js' 
 
-const { show } = useToast()
+// const { show } = useToast()
+const router = useRouter()
 
-const form = reactive({ ...currentUser })
+const usuario = ref(null)
 const editing = ref(false)
-const initials = computed(() => initialsFor(form.name))
 
-const myPosts = computed(() => posts.filter(p => p.author === currentUser.name && !p.anonymous))
-const myItems = computed(() => marketplaceItems.filter(i => i.seller === currentUser.name))
+// El formulario se llenará dinámicamente en el onMounted
+const form = reactive({
+  name: '',
+  career: 'Cargando...', // Placeholder temporal
+  semester: 1,           // Placeholder temporal
+  email: ''
+})
+
+const initials = computed(() => initialsFor ? initialsFor(form.name) : '??')
+
+// Filtramos la data mockeada usando el nombre real del usuario logueado
+const myPosts = computed(() => posts ? posts.filter(p => p.author === form.name && !p.anonymous) : [])
+const myItems = computed(() => marketplaceItems ? marketplaceItems.filter(i => i.seller === form.name) : [])
+
 const avgRating = computed(() => {
   if (myPosts.value.length === 0) return '—'
   const total = myPosts.value.reduce((sum, p) => sum + p.rating, 0)
@@ -121,23 +139,75 @@ function animateValue(targetRef, target, duration = 600) {
   requestAnimationFrame(step)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // 1. Cargar datos básicos de sesión y token
+  const userData = sessionStorage.getItem('user')
+  const token = sessionStorage.getItem('token')
+
+  if (!userData || !token) {
+    router.push('/')
+    return
+  }
+
+  // Llenar datos básicos
+  usuario.value = JSON.parse(userData)
+  form.name = usuario.value.nombreCompleto || 'Alumno'
+  form.email = usuario.value.correo || ''
+
+  // 2. HACER PETICIÓN AL BACKEND PARA TRAER CARRERA Y SEMESTRE
+  try {
+    const response = await fetch('http://localhost:3000/api/users/perfil', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (response.ok) {
+      const datosPerfil = await response.json()
+      
+      // ¡Aquí el cambio! 
+      // Tomamos el Semestre y el nombre de la carrera directo del JSON de la BD
+      form.semester = datosPerfil.Semestre
+      form.career = datosPerfil.Nom_Carrera || 'Carrera no registrada'
+      
+    } else {
+      // Si el token falló o expiró
+      console.error('Token inválido')
+      logout()
+    }
+  } catch (error) {
+    console.error('Error al cargar la info del perfil:', error)
+  }
+
+  // Animaciones de las métricas
   animateValue(animatedPosts, myPosts.value.length)
   animateValue(animatedItems, myItems.value.length)
 })
 
 function save() {
-  Object.assign(currentUser, form)
+  // Aquí irá la lógica de fetch() PUT al backend más adelante
   editing.value = false
-  show('Perfil actualizado')
+  // show('Perfil actualizado')
 }
+
 function cancel() {
-  Object.assign(form, currentUser)
+  // Revertir cambios locales
+  form.name = usuario.value.nombreCompleto
+  form.email = usuario.value.correo
   editing.value = false
+}
+
+function logout() {
+  sessionStorage.removeItem('token')
+  sessionStorage.removeItem('user')
+  router.push('/')
 }
 </script>
 
 <style scoped>
+/* Conserve todo tu estilo intacto */
 .page { max-width: 880px; }
 .banner {
   height: 110px;
@@ -194,6 +264,7 @@ dl { margin: 0 0 1.25rem; }
 .row { display: flex; justify-content: space-between; padding: 0.55rem 0; border-bottom: 1px solid var(--line); font-size: 0.92rem; }
 dt { color: var(--slate); margin: 0; }
 dd { margin: 0; font-weight: 500; }
+
 .edit {
   padding: 0.6rem 1.1rem;
   border: none;
@@ -205,6 +276,25 @@ dd { margin: 0; font-weight: 500; }
   width: 100%;
 }
 .edit:hover { background: var(--navy-soft); }
+
+/* --- Nuevo estilo para el botón de Cerrar sesión --- */
+.logout {
+  margin-top: 0.8rem;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid #dc3545;
+  border-radius: 8px;
+  background: transparent;
+  color: #dc3545;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.2s;
+}
+.logout:hover {
+  background: #dc3545;
+  color: white;
+}
+
 form { display: flex; flex-direction: column; gap: 1rem; }
 label { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.88rem; color: var(--slate); }
 input { padding: 0.55rem 0.75rem; border: 1px solid var(--line); border-radius: 8px; font-family: var(--font-body); }

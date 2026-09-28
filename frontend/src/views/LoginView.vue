@@ -61,9 +61,9 @@ async function onSubmit() {
       throw new Error(data.message || 'Error al iniciar sesión')
     }
 
-    // Guardamos el token y el usuario en localStorage
-    localStorage.setItem('token', data.token)
-    localStorage.setItem('user', JSON.stringify(data.user))
+    // Guardamos el token y el usuario en sessionStorage
+    sessionStorage.setItem('token', data.token)
+    sessionStorage.setItem('user', JSON.stringify(data.user))
 
     // Redirigimos según el rol (opcional)
     if (data.user.rol === 'Administrador') {

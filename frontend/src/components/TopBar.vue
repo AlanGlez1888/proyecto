@@ -60,8 +60,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { currentUser } from '../data/currentUser.js'
-import { teachers, friends } from '../data/mockData.js'
+// Eliminamos currentUser.js 
+import { teachers, friends } from '../data/mockData.js' // Mantienes los mocks para la búsqueda por ahora
 import { initialsFor, colorForSubject } from '../utils/subjectColor.js'
 import AppLogo from './AppLogo.vue'
 
@@ -69,7 +69,14 @@ const q = ref('')
 const focused = ref(false)
 const router = useRouter()
 
-const initials = computed(() => initialsFor(currentUser.name))
+// 1. Variable para guardar al usuario de la sesión
+const usuario = ref(null)
+
+// 2. Computed dinámico para las iniciales
+const initials = computed(() => {
+  const nombre = usuario.value?.nombreCompleto || 'Usuario'
+  return initialsFor ? initialsFor(nombre) : nombre.charAt(0)
+})
 
 const teacherMatches = computed(() => {
   const s = q.value.trim().toLowerCase()
@@ -121,11 +128,21 @@ function toggleNotifs() { showNotifs.value = !showNotifs.value }
 function handleDocClick(e) {
   if (notifWrapEl.value && !notifWrapEl.value.contains(e.target)) showNotifs.value = false
 }
-onMounted(() => document.addEventListener('click', handleDocClick))
+
+onMounted(() => {
+  // 3. Cargamos los datos del usuario al montar el Topbar
+  const userData = sessionStorage.getItem('user')
+  if (userData) {
+    usuario.value = JSON.parse(userData)
+  }
+  document.addEventListener('click', handleDocClick)
+})
+
 onUnmounted(() => document.removeEventListener('click', handleDocClick))
 </script>
 
 <style scoped>
+/* Todo el bloque de estilos permanece exactamente igual */
 .topbar {
   display: grid;
   grid-template-columns: auto minmax(0, 480px) auto;

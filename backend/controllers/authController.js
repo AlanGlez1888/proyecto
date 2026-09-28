@@ -89,16 +89,27 @@ const login = async (req, res) => {
         console.log('¿Coincide la contraseña?', isMatch);
         console.log('=============');
 
+        
+
         if (!isMatch) {
             return res.status(401).json({ message: 'Correo o contraseña incorrectos' });
         }
+
+                // NUEVO: Buscar el ID_Alumno en la tabla alumno
+        const [alumnoRows] = await db.query(
+            'SELECT ID_Alumno, Nombre_Alumno, APat_Alumno FROM alumno WHERE ID_Usuario = ?',
+            [usuario.ID_Usuario]
+        );
+
+        const alumno = alumnoRows[0] || null;
+        console.log('Alumno encontrado:', alumno);
 
         // Generar Token JWT
         const token = jwt.sign(
             { id: usuario.ID_Usuario, rol: usuario.Rol },
             process.env.JWT_SECRET || 'secreto_temporal',
             { expiresIn: '2h' }
-        );
+        );  
 
         res.json({
             message: 'Login exitoso',
@@ -106,7 +117,11 @@ const login = async (req, res) => {
             user: {
                 id: usuario.ID_Usuario,
                 correo: usuario.correo,
-                rol: usuario.Rol
+                rol: usuario.Rol,
+                idAlumno: alumno ? alumno.ID_Alumno : null,
+                nombreCompleto: alumno 
+                    ? `${alumno.Nombre_Alumno} ${alumno.APat_Alumno}` 
+                    : null
             }
         });
 

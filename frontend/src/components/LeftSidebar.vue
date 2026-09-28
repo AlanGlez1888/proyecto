@@ -4,7 +4,8 @@
       <span class="avatar">{{ initials }}</span>
       <div class="who">
         <span class="name">{{ firstName }}</span>
-        <span class="career">{{ shortCareer }}</span>
+        <!-- Mostramos el rol temporalmente en lugar de la carrera -->
+        <span class="career">{{ rolUsuario }}</span> 
       </div>
     </div>
 
@@ -32,8 +33,10 @@
       </svg>
       Amigos
     </router-link>
+    
+    <!-- Validamos con el rol real de la BD -->
     <router-link
-      v-if="currentUser.role === 'admin' || currentUser.role === 'moderador'"
+      v-if="rolUsuario === 'Administrador' || rolUsuario === 'Moderador'"
       to="/admin"
       class="item"
       active-class="active"
@@ -47,19 +50,39 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { currentUser } from '../data/currentUser.js'
+import { ref, computed, onMounted } from 'vue'
 import { initialsFor } from '../utils/subjectColor.js'
 
-const initials = computed(() => initialsFor(currentUser.name))
-const firstName = computed(() => currentUser.name.split(' ')[0])
-const shortCareer = computed(() => {
-  const words = currentUser.career.split(' ')
-  return words.length > 3 ? words.slice(0, 3).join(' ') + '…' : currentUser.career
+// Variables reactivas para guardar los datos
+const usuario = ref(null)
+const defaultName = 'Usuario'
+
+// Leemos el sessionStorage al cargar la barra lateral
+onMounted(() => {
+  const userData = sessionStorage.getItem('user')
+  if (userData) {
+    usuario.value = JSON.parse(userData)
+  }
+})
+
+// Computados seguros usando nullish coalescing para evitar errores si está vacío
+const initials = computed(() => {
+  const nombre = usuario.value?.nombreCompleto || defaultName
+  return initialsFor ? initialsFor(nombre) : nombre.charAt(0)
+})
+
+const firstName = computed(() => {
+  const nombre = usuario.value?.nombreCompleto || defaultName
+  return nombre.split(' ')[0]
+})
+
+const rolUsuario = computed(() => {
+  return usuario.value?.rol || 'Alumno'
 })
 </script>
 
 <style scoped>
+/* TODO TU ESTILO SE QUEDA EXACTAMENTE IGUAL AQUÍ ABAJO */
 .sidebar {
   display: flex;
   flex-direction: column;

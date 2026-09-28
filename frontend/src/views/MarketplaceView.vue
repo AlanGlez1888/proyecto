@@ -4,7 +4,7 @@
     <p class="lede">Materiales, guías y objetos entre compañeros. Sin pagos dentro de la plataforma.</p>
 
     <div class="toolbar">
-      <input v-model="query" type="text" placeholder="Buscar por título o materia" />
+      <input v-model="query" type="text" placeholder="Buscar por descripción o materia" />
       <div class="tabs">
         <button
           v-for="opt in typeOptions" :key="opt.value"
@@ -18,43 +18,62 @@
     </div>
 
     <form v-if="showForm" class="new-item" @submit.prevent="publish">
-      <input v-model="draft.title" type="text" placeholder="Título del artículo" required />
-      <input v-model="draft.subject" type="text" placeholder="Materia" required />
-      <select v-model="draft.condition">
-        <option>Nuevo</option>
-        <option>Buen estado</option>
-        <option>Usado</option>
+      <input v-model="draft.descripcion" type="text" placeholder="Descripción del artículo" required />
+      
+      <select v-model.number="draft.idMateria" required>
+        <option value="" disabled>Selecciona materia</option>
+        <option v-for="m in materias" :key="m.id" :value="m.id">{{ m.nombre }}</option>
       </select>
-      <select v-model="draft.type">
-        <option value="venta">Venta</option>
-        <option value="renta">Renta</option>
+      
+      <select v-model="draft.tipo">
+        <option value="Venta">Venta</option>
+        <option value="Renta">Renta</option>
       </select>
-      <input v-if="draft.type === 'venta'" v-model.number="draft.price" type="number" min="0" placeholder="Precio (MXN)" />
+      
+      <label v-if="draft.tipo === 'Venta'" class="field">
+        Precio (MXN)
+        <input 
+          v-model.number="draft.costo" 
+          type="number" min="0" 
+        />
+      </label>
+      
+      <input v-model="draft.ubicacion" type="text" placeholder="Ubicación" />
+      <input v-model="draft.telContacto" type="tel" placeholder="Teléfono de contacto" />
+      
       <button type="submit">Publicar</button>
     </form>
 
-    <div class="grid">
+    <div v-if="cargando" class="loading">Cargando marketplace...</div>
+
+    <div v-else class="grid">
       <article v-for="item in filteredItems" :key="item.id" class="item">
-        <div class="item-bar" :style="{ background: colorForSubject(item.subject) }"></div>
+        <div class="item-bar" :style="{ background: colorForSubject(item.materia || 'General') }"></div>
         <div class="item-body">
           <div class="item-top">
-            <span class="subject" :style="{ color: colorForSubject(item.subject) }">{{ item.subject }}</span>
-            <span v-if="item.isNew" class="new-badge">Nuevo</span>
+            <span class="subject" :style="{ color: colorForSubject(item.materia || 'General') }">
+              {{ item.materia || 'General' }}
+            </span>
           </div>
-          <h3>{{ item.title }}</h3>
-          <p class="meta">{{ item.condition }} · {{ item.seller }}</p>
-          <span class="price">{{ item.type === 'venta' ? `$${item.price} MXN` : 'Disponible en renta' }}</span>
+          <h3>{{ item.descripcion }}</h3>
+          <p class="meta">{{ item.vendedor }}</p>
+          <span class="price">
+            {{ item.tipo === 'Venta' ? `$${item.costo} MXN` : 'Disponible en renta' }}
+          </span>
+          <p v-if="item.ubicacion" class="meta">📍 {{ item.ubicacion }}</p>
         </div>
       </article>
     </div>
-    <EmptyState v-if="filteredItems.length === 0" message="No hay artículos que coincidan con tu búsqueda." />
+
+    <EmptyState 
+      v-if="!cargando && filteredItems.length === 0" 
+      message="No hay artículos que coincidan con tu búsqueda." 
+    />
   </section>
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
-import { marketplaceItems } from '../data/mockData.js'
-import { currentUser } from '../data/currentUser.js'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { colorForSubject } from '../utils/subjectColor.js'
 import { useToast } from '../composables/useToast.js'
 import EmptyState from '../components/EmptyState.vue'
@@ -67,43 +86,90 @@ const showForm = ref(false)
 
 const typeOptions = [
   { value: 'todos', label: 'Todos' },
-  { value: 'venta', label: 'Venta' },
-  { value: 'renta', label: 'Renta' }
+  { value: 'Venta', label: 'Venta' },
+  { value: 'Renta', label: 'Renta' }
 ]
 
-const draft = reactive({ title: '', subject: '', condition: 'Buen estado', type: 'venta', price: 0 })
+const items = ref([])
+const materias = ref([])
+const cargando = ref(true)
 
-function publish() {
-  const id = Date.now()
-  marketplaceItems.unshift({
-    id,
-    title: draft.title.trim(),
-    subject: draft.subject.trim(),
-    condition: draft.condition,
-    type: draft.type,
-    price: draft.type === 'venta' ? Number(draft.price) || 0 : 0,
-    seller: currentUser.name,
-    isNew: true
-  })
-  show('¡Artículo publicado en el marketplace!')
-  setTimeout(() => {
-    const item = marketplaceItems.find(i => i.id === id)
-    if (item) item.isNew = false
-  }, 5000)
+const draft = reactive({
+  descripcion: '',
+  idMateria: '',
+  tipo: 'Venta',
+  costo: 0,
+  ubicacion: '',
+  telContacto: ''
+})
 
-  draft.title = ''
-  draft.subject = ''
-  draft.condition = 'Buen estado'
-  draft.type = 'venta'
-  draft.price = 0
-  showForm.value = false
+onMounted(async () => {
+  try {
+    const [resPub, resMat] = await Promise.all([
+      fetch('http://localhost:3000/api/marketplace'),
+      fetch('http://localhost:3000/api/materias')
+    ])
+    items.value = await resPub.json()
+    materias.value = await resMat.json()
+  } catch (err) {
+    console.error('Error al cargar datos:', err)
+    show('Error al cargar el marketplace')
+  } finally {
+    cargando.value = false
+  }
+})
+
+async function publish() {
+  // ✅ Leer fresco desde sessionStorage
+  const currentUser = JSON.parse(sessionStorage.getItem('user') || '{}')
+
+  if (!currentUser.idAlumno) {
+    show('Debes iniciar sesión como alumno para publicar')
+    return
+  }
+
+  try {
+    const response = await fetch('http://localhost:3000/api/marketplace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idAlumno: currentUser.idAlumno,
+        idMateria: draft.idMateria || null,
+        descripcion: draft.descripcion,
+        tipo: draft.tipo,
+        costo: draft.tipo === 'Venta' ? Number(draft.costo) || 0 : 0,
+        ubicacion: draft.ubicacion || null,
+        correoContacto: currentUser.correo || null,
+        telContacto: draft.telContacto || null
+      })
+    })
+
+    if (!response.ok) throw new Error('Error al publicar')
+
+    const res = await fetch('http://localhost:3000/api/marketplace')
+    items.value = await res.json()
+    show('¡Artículo publicado en el marketplace!')
+
+    draft.descripcion = ''
+    draft.idMateria = ''
+    draft.tipo = 'Venta'
+    draft.costo = 0
+    draft.ubicacion = ''
+    draft.telContacto = ''
+    showForm.value = false
+  } catch (err) {
+    console.error(err)
+    show('Error al publicar el artículo')
+  }
 }
 
 const filteredItems = computed(() => {
   const q = query.value.trim().toLowerCase()
-  return marketplaceItems.filter(item => {
-    const matchesQuery = !q || item.title.toLowerCase().includes(q) || item.subject.toLowerCase().includes(q)
-    const matchesType = typeFilter.value === 'todos' || item.type === typeFilter.value
+  return items.value.filter(item => {
+    const matchesQuery = !q
+      || (item.descripcion && item.descripcion.toLowerCase().includes(q))
+      || (item.materia && item.materia.toLowerCase().includes(q))
+    const matchesType = typeFilter.value === 'todos' || item.tipo === typeFilter.value
     return matchesQuery && matchesType
   })
 })
@@ -172,6 +238,12 @@ const filteredItems = computed(() => {
   cursor: pointer;
 }
 
+.loading {
+  text-align: center;
+  color: var(--slate);
+  padding: 2rem;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -188,14 +260,6 @@ const filteredItems = computed(() => {
 .item-bar { height: 5px; }
 .item-body { padding: 1rem 1.1rem 1.2rem; }
 .item-top { display: flex; align-items: center; justify-content: space-between; }
-.new-badge {
-  background: var(--amber);
-  color: white;
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 0.1rem 0.5rem;
-  border-radius: 999px;
-}
 .item-body h3 { font-family: var(--font-display); font-size: 1rem; margin: 0.3rem 0 0.3rem; color: var(--ink); }
 .subject { font-size: 0.75rem; font-weight: 600; }
 .meta { color: var(--slate); font-size: 0.85rem; margin: 0 0 0.6rem; }
