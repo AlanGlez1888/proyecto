@@ -1,0 +1,8 @@
+Backend
+npm install express cors mysql2 dotenv
+npm install express
+npm cors
+npm install bcryptjs jsonwebtoken 
+npm install bcryptjs
+
+Frontend
