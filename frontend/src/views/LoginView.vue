@@ -27,11 +27,10 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { APP_NAME } from '../config.js'
-import { APP_TAGLINE } from '../config.js'
+import { APP_NAME, APP_TAGLINE } from '../config.js'
 import AppLogo from '../components/AppLogo.vue'
+import { setUser } from '../data/currentUser.js' // <-- IMPORTACIÓN NUEVA
 
-// Variables del formulario (coinciden con el template)
 const correo = ref('')
 const contrasena = ref('')
 const error = ref('')
@@ -43,7 +42,6 @@ async function onSubmit() {
   loading.value = true
 
   try {
-    // Hacemos la petición al backend
     const response = await fetch('http://localhost:3000/api/auth/login', {
       method: 'POST',
       headers: {
@@ -57,17 +55,20 @@ async function onSubmit() {
 
     const data = await response.json()
 
+    console.log("Respuesta del login:", data);
+
     if (!response.ok) {
       throw new Error(data.message || 'Error al iniciar sesión')
     }
 
-    // Guardamos el token y el usuario en sessionStorage
+    // Guardamos el token en sessionStorage
     sessionStorage.setItem('token', data.token)
-    sessionStorage.setItem('user', JSON.stringify(data.user))
+    
+    // <-- AQUÍ AVISAMOS A VUE DEL NUEVO USUARIO -->
+    setUser(data.user)
 
-    // Redirigimos según el rol (opcional)
     if (data.user.rol === 'Administrador') {
-      router.push({ name: 'admin' }) // Asumiendo que tienes esta ruta
+      router.push({ name: 'admin' }) 
     } else {
       router.push({ name: 'home' })
     }

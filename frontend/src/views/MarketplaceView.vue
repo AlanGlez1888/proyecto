@@ -245,7 +245,8 @@ async function savePost() {
         tipo: draft.tipo,
         costo: draft.tipo === 'Venta' ? Number(draft.costo) || 0 : 0,
         ubicacion: draft.ubicacion || null,
-        telContacto: draft.telContacto || null
+        telContacto: draft.telContacto || null,
+        correoContacto: currentUser.correo
       })
     })
 

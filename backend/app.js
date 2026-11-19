@@ -1,4 +1,4 @@
-// backend/server.js
+// backend/app.js
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -11,7 +11,8 @@ const authRoutes = require('./routes/authRoutes');
 const carreraRoutes = require('./routes/carreraRoutes');
 const marketplaceRoutes = require('./routes/marketplaceRoutes');   
 const materiaRoutes = require('./routes/materiaRoutes');
-const userRoutes = require('./routes/userRoutes');           
+const userRoutes = require('./routes/userRoutes');   
+const resenaRoutes = require('./routes/resenaRoutes');       
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,6 +26,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/materias', materiaRoutes); 
 app.use('/api/users', userRoutes);
+app.use('/api/resenas', resenaRoutes);
 
 // Levantamos el servidor
 app.listen(PORT, async () => {

@@ -14,11 +14,13 @@ const getPublicaciones = async (req, res) => {
 
 // POST /api/marketplace
 const crearPublicacion = async (req, res) => {
+    // console.log('Cuerpo de la solicitud:', req.body); // Log para depuración
     try {
         const {
             idAlumno, idMateria, descripcion,
             tipo, costo, ubicacion, correoContacto, telContacto
         } = req.body;
+        // const Correocontacto2 = await Publicacion.getByAlumno(idAlumno);
 
         if (!idAlumno || !descripcion || !tipo) {
             return res.status(400).json({ 
@@ -39,8 +41,10 @@ const crearPublicacion = async (req, res) => {
             tipo,
             costo: costo || 0,
             ubicacion: ubicacion || null,
-            correoContacto: correoContacto || null,
+            //correoContacto: Correocontacto2[0].correoContacto || null,
+            correoContacto,
             telContacto: telContacto || null
+            //c15c0
         });
 
         res.status(201).json({ 

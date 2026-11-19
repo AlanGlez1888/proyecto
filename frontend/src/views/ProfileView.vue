@@ -86,29 +86,17 @@ import { reactive, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import PostCard from '../components/PostCard.vue'
 import EmptyState from '../components/EmptyState.vue'
-
-// Importaciones de tu entorno (asumo que existen en tu proyecto)
 import { posts, marketplaceItems } from '../data/mockData.js'
 import { initialsFor, colorForSubject } from '../utils/subjectColor.js'
-// import { useToast } from '../composables/useToast.js' 
+import { clearUser } from '../data/currentUser.js' // <-- IMPORTACIÓN NUEVA
 
-// const { show } = useToast()
 const router = useRouter()
-
 const usuario = ref(null)
 const editing = ref(false)
 
-// El formulario se llenará dinámicamente en el onMounted
-const form = reactive({
-  name: '',
-  career: 'Cargando...', // Placeholder temporal
-  semester: 1,           // Placeholder temporal
-  email: ''
-})
-
+const form = reactive({ name: '', career: 'Cargando...', semester: 1, email: '' })
 const initials = computed(() => initialsFor ? initialsFor(form.name) : '??')
 
-// Filtramos la data mockeada usando el nombre real del usuario logueado
 const myPosts = computed(() => posts ? posts.filter(p => p.author === form.name && !p.anonymous) : [])
 const myItems = computed(() => marketplaceItems ? marketplaceItems.filter(i => i.seller === form.name) : [])
 
@@ -140,7 +128,6 @@ function animateValue(targetRef, target, duration = 600) {
 }
 
 onMounted(async () => {
-  // 1. Cargar datos básicos de sesión y token
   const userData = sessionStorage.getItem('user')
   const token = sessionStorage.getItem('token')
 
@@ -149,12 +136,10 @@ onMounted(async () => {
     return
   }
 
-  // Llenar datos básicos
   usuario.value = JSON.parse(userData)
   form.name = usuario.value.nombreCompleto || 'Alumno'
   form.email = usuario.value.correo || ''
 
-  // 2. HACER PETICIÓN AL BACKEND PARA TRAER CARRERA Y SEMESTRE
   try {
     const response = await fetch('http://localhost:3000/api/users/perfil', {
       method: 'GET',
@@ -166,14 +151,9 @@ onMounted(async () => {
 
     if (response.ok) {
       const datosPerfil = await response.json()
-      
-      // ¡Aquí el cambio! 
-      // Tomamos el Semestre y el nombre de la carrera directo del JSON de la BD
       form.semester = datosPerfil.Semestre
       form.career = datosPerfil.Nom_Carrera || 'Carrera no registrada'
-      
     } else {
-      // Si el token falló o expiró
       console.error('Token inválido')
       logout()
     }
@@ -181,19 +161,15 @@ onMounted(async () => {
     console.error('Error al cargar la info del perfil:', error)
   }
 
-  // Animaciones de las métricas
   animateValue(animatedPosts, myPosts.value.length)
   animateValue(animatedItems, myItems.value.length)
 })
 
 function save() {
-  // Aquí irá la lógica de fetch() PUT al backend más adelante
   editing.value = false
-  // show('Perfil actualizado')
 }
 
 function cancel() {
-  // Revertir cambios locales
   form.name = usuario.value.nombreCompleto
   form.email = usuario.value.correo
   editing.value = false
@@ -201,7 +177,10 @@ function cancel() {
 
 function logout() {
   sessionStorage.removeItem('token')
-  sessionStorage.removeItem('user')
+  
+  // <-- AQUÍ AVISAMOS A VUE QUE SE CERRÓ SESIÓN -->
+  clearUser()
+  
   router.push('/')
 }
 </script>
