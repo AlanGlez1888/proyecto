@@ -1,1 +1,0 @@
-Aqui vamos a colocar la logica de la aplicacion, es decir, el backend tal cual como lo conocemos
