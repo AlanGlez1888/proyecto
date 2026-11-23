@@ -28,21 +28,27 @@
         <span class="avatar-sm">{{ initials }}</span>
         <input v-model="draft.content" type="text" placeholder="¿Qué opinas de algún maestro hoy?" />
       </div>
+
       <div class="composer-fields">
-        <input v-model="draft.teacher" type="text" placeholder="Maestro" />
-        <input v-model="draft.subject" type="text" placeholder="Materia" />
+        <!-- Selector dinámico con los datos de laBD -->
+        <select v-model="draft.ID_Prof_Mat" class="clase-select">
+          <option value="" disabled>Selecciona un maestro y materia</option>
+          <option v-for="clase in clasesDisponibles" :key="clase.ID_Prof_Mat" :value="clase.ID_Prof_Mat">
+            {{ clase.Nombre_Prof }} {{ clase.APat_Prof }} - {{ clase.Nombre_Mat }}
+          </option>
+        </select>
+        
         <div class="rating-picker">
           <button
             v-for="n in 5" :key="n" type="button"
-            class="star-btn" :class="{ active: n <= draft.rating }"
-            @click="draft.rating = n"
+            class="star-btn" :class="{ active: n <= draft.Puntaje }"
+            @click="draft.Puntaje = n"
           >★</button>
         </div>
       </div>
+
       <div class="composer-actions">
-        <label class="anon">
-          <input type="checkbox" v-model="draft.anonymous" /> Publicar como anónimo
-        </label>
+        <!-- El checkbox de anónimo fue removido porque no está en el esquema SQL -->
         <button class="publish" type="button" :disabled="!canPublish" @click="publish">Publicar</button>
       </div>
     </div>
@@ -64,11 +70,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue' // Agregado onMounted
 import PostCard from '../components/PostCard.vue'
 import EmptyState from '../components/EmptyState.vue'
 import RatingStars from '../components/RatingStars.vue'
-import { posts, teachers } from '../data/mockData.js'
+// Se eliminó la importación de posts y teachers de mockData.js
 import { currentUser } from '../data/currentUser.js'
 import { initialsFor, colorForSubject } from '../utils/subjectColor.js'
 import { useToast } from '../composables/useToast.js'
@@ -78,44 +84,94 @@ const { show } = useToast()
 const query = ref('')
 const initials = computed(() => initialsFor(currentUser.name))
 
-const spotlightTeacher = computed(() =>
-  [...teachers].sort((a, b) => b.rating - a.rating)[0]
-)
+const posts = ref([])
+const clasesDisponibles = ref([])
 
-const draft = reactive({ content: '', teacher: '', subject: '', rating: 0, anonymous: false })
+const spotlightTeacher = computed(() => {
+  if (posts.value.length === 0) return null
+  const topPost = posts.value.reduce((prev, current) => (prev.rating > current.rating) ? prev : current)
+  return {
+    name: topPost.teacher,
+    subject: topPost.subject,
+    rating: topPost.rating
+  }
+})
+
+// Cambiado 'rating' por 'Puntaje' para coincidir con el v-model del template
+const draft = reactive({ content: '', ID_Prof_Mat: '', Puntaje: 0 })
+
 const canPublish = computed(
-  () => draft.content.trim() && draft.teacher.trim() && draft.subject.trim() && draft.rating > 0
+  () => draft.content.trim() && draft.ID_Prof_Mat && draft.Puntaje > 0
 )
 
 const justPostedId = ref(null)
 
-function publish() {
-  const newPost = {
-    id: Date.now(),
-    author: currentUser.name,
-    anonymous: draft.anonymous,
-    teacher: draft.teacher.trim(),
-    subject: draft.subject.trim(),
-    content: draft.content.trim(),
-    rating: draft.rating,
-    likes: 0
+onMounted(async () => {
+  try {
+    const [resPosts, resClases] = await Promise.all([
+      fetch('http://localhost:3000/api/resenas').then(r => {
+        if (!r.ok) throw new Error('Error cargando reseñas');
+        return r.json();
+      }),
+      fetch('http://localhost:3000/api/resenas/clases').then(r => {
+        if (!r.ok) throw new Error('Error cargando clases');
+        return r.json();
+      })
+    ])
+    posts.value = resPosts
+    clasesDisponibles.value = resClases
+  } catch (error) {
+    console.error('Error de red o de servidor:', error)
   }
-  posts.unshift(newPost)
-  justPostedId.value = newPost.id
-  setTimeout(() => { justPostedId.value = null }, 1600)
-  show('¡Tu opinión fue publicada!')
+})
 
-  draft.content = ''
-  draft.teacher = ''
-  draft.subject = ''
-  draft.rating = 0
-  draft.anonymous = false
+async function publish() {
+  if (!currentUser.idAlumno) {
+    show('Debes iniciar sesión para publicar reseñas')
+    return
+  }
+
+  const payload = {
+    ID_Alumno: currentUser.idAlumno,
+    ID_Prof_Mat: draft.ID_Prof_Mat,
+    Puntaje: draft.Puntaje,
+    Resena_texto: draft.content.trim()
+  }
+
+  try {
+    const response = await fetch('http://localhost:3000/api/resenas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+
+    if (!response.ok) throw new Error('Error al publicar en la base de datos')
+
+    const newPostData = await response.json()
+    show('¡Tu opinión fue publicada!')
+
+    const updatedPosts = await fetch('http://localhost:3000/api/resenas').then(r => r.json())
+    posts.value = updatedPosts
+
+    justPostedId.value = newPostData.id || null
+    setTimeout(() => { justPostedId.value = null }, 1600)
+
+    draft.content = ''
+    draft.ID_Prof_Mat = ''
+    draft.Puntaje = 0 // Actualizado para limpiar la variable correcta
+  } catch (err) {
+    console.error(err)
+    show('Ocurrió un error al publicar')
+  }
 }
 
 const filteredPosts = computed(() => {
   const q = query.value.trim().toLowerCase()
-  if (!q) return posts
-  return posts.filter(p => p.teacher.toLowerCase().includes(q) || p.subject.toLowerCase().includes(q))
+  if (!q) return posts.value
+  return posts.value.filter(p => 
+    (p.teacher && p.teacher.toLowerCase().includes(q)) || 
+    (p.subject && p.subject.toLowerCase().includes(q))
+  )
 })
 </script>
 
@@ -190,21 +246,25 @@ const filteredPosts = computed(() => {
 }
 .composer-top input:focus { outline: 2px solid var(--blue-300); }
 .composer-fields { display: flex; gap: 0.6rem; margin-top: 0.75rem; flex-wrap: wrap; align-items: center; }
-.composer-fields input {
+
+/* Estilos ajustados para el select en lugar de los inputs anteriores */
+.clase-select {
   flex: 1;
-  min-width: 120px;
+  min-width: 250px;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--line);
   border-radius: 8px;
   font-family: var(--font-body);
   font-size: 0.85rem;
+  background-color: var(--white);
 }
+
 .rating-picker { display: flex; gap: 2px; }
 .star-btn { background: none; border: none; font-size: 1.2rem; color: var(--line); cursor: pointer; padding: 0; transition: transform 0.15s ease; }
 .star-btn.active { color: var(--amber); }
 .star-btn:hover { transform: scale(1.15); }
-.composer-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 0.85rem; }
-.anon { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: var(--slate); }
+.composer-actions { display: flex; align-items: center; justify-content: flex-end; margin-top: 0.85rem; }
+
 .publish {
   background: var(--blue-500);
   color: white;

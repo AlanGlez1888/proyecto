@@ -120,11 +120,9 @@ import EmptyState from '../components/EmptyState.vue'
 
 import { posts } from '../data/mockData.js'
 import { initialsFor, colorForSubject } from '../utils/subjectColor.js'
-// import { useToast } from '../composables/useToast.js'
+import { clearUser } from '../data/currentUser.js' // <-- IMPORTACIÓN NUEVA
 
-// const { show } = useToast()
 const router = useRouter()
-
 const usuario = ref(null)
 const editing = ref(false)
 const saving = ref(false)
@@ -328,7 +326,10 @@ async function deleteItem(id) {
 
 function logout() {
   sessionStorage.removeItem('token')
-  sessionStorage.removeItem('user')
+  
+  // <-- AQUÍ AVISAMOS A VUE QUE SE CERRÓ SESIÓN -->
+  clearUser()
+  
   router.push('/')
 }
 </script>
