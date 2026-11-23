@@ -4,9 +4,9 @@ const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
 
 export const currentUser = reactive({
   idAlumno: storedUser.idAlumno || null,
-  name: storedUser.nombreCompleto || 'Usuario', // Matches authController.js exactly
-  email: storedUser.correo || '',             // Matches authController.js exactly
-  rol: storedUser.rol || 'estudiante'         // Matches authController.js exactly
+  name: storedUser.nombreCompleto || 'Usuario', 
+  email: storedUser.correo || '',             
+  rol: storedUser.rol || 'estudiante'       
 });
 
 export function setUser(userData) {
