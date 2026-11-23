@@ -168,4 +168,60 @@ const deleteMyItem = async (req, res) => {
     }
 };
 
-module.exports = { getProfile, getCarreras, updateProfile, getMyPublications, deleteMyItem };
+// 6. Obtener reseñas de profesores hechas por el alumno logueado
+const getMyReviews = async (req, res) => {
+    try {
+        const idUsuario = req.usuarioId;
+
+        const query = `
+            SELECT 
+                r.ID_Resena AS id,
+                r.Puntaje AS rating,
+                r.Resena AS content,
+                CONCAT_WS(' ', NULLIF(a.Nombre_Alumno, ''), NULLIF(a.APat_Alumno, ''), NULLIF(a.AMat_Alumno, '')) AS author,
+                CONCAT_WS(' ', NULLIF(p.Titulo, ''), NULLIF(p.Nombre_Prof, ''), NULLIF(p.APat_Prof, ''), NULLIF(p.AMat_Prof, '')) AS teacher,
+                m.Nombre_Mat AS subject,
+                0 AS likes
+            FROM resena r
+            INNER JOIN alumno a ON r.ID_Alumno = a.ID_Alumno
+            INNER JOIN profesor_materia pm ON r.ID_Prof_Mat = pm.ID_Prof_Mat
+            INNER JOIN profesor p ON pm.ID_Prof = p.ID_Prof
+            INNER JOIN materia m ON pm.ID_Mat = m.ID_Mat
+            WHERE a.ID_Usuario = ?
+            ORDER BY r.ID_Resena DESC
+        `;
+
+        const [rows] = await db.query(query, [idUsuario]);
+        res.json(rows);
+    } catch (error) {
+        console.error('Error al obtener reseñas del usuario:', error);
+        res.status(500).json({ message: 'Error al obtener tus reseñas' });
+    }
+};
+
+// 7. Eliminar una reseña propia
+const deleteMyReview = async (req, res) => {
+    try {
+        const idUsuario = req.usuarioId;
+        const { id } = req.params;
+
+        const query = `
+            DELETE r FROM resena r
+            INNER JOIN alumno a ON r.ID_Alumno = a.ID_Alumno
+            WHERE r.ID_Resena = ? AND a.ID_Usuario = ?
+        `;
+
+        const [result] = await db.query(query, [id, idUsuario]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Reseña no encontrada o no tienes permiso para eliminarla' });
+        }
+
+        res.json({ message: 'Reseña eliminada correctamente' });
+    } catch (error) {
+        console.error('Error al eliminar reseña:', error);
+        res.status(500).json({ message: 'Error al eliminar la reseña' });
+    }
+};
+
+module.exports = { getProfile, getCarreras, updateProfile, getMyPublications, deleteMyItem, getMyReviews, deleteMyReview };

@@ -87,7 +87,7 @@
 
       <div class="activity">
         <h2>Mis publicaciones</h2>
-        <PostCard v-for="post in myPosts" :key="post.id" :post="post" />
+        <PostCard v-for="post in myPosts" :key="post.id" :post="post" :can-delete="true" @delete="deleteReview" />
         <EmptyState v-if="myPosts.length === 0" message="Aún no has publicado opiniones." />
 
         <h2>Mis artículos en marketplace</h2>
@@ -118,9 +118,8 @@ import { useRouter } from 'vue-router'
 import PostCard from '../components/PostCard.vue'
 import EmptyState from '../components/EmptyState.vue'
 
-import { posts } from '../data/mockData.js'
 import { initialsFor, colorForSubject } from '../utils/subjectColor.js'
-import { clearUser } from '../data/currentUser.js' // <-- IMPORTACIÓN NUEVA
+import { clearUser } from '../data/currentUser.js'
 
 const router = useRouter()
 const usuario = ref(null)
@@ -140,8 +139,9 @@ const form = reactive({
   email: ''
 })
 
-// Artículos reales desde MySQL
+// Artículos y reseñas reales desde MySQL
 const myItems = ref([])
+const myPosts = ref([])
 
 // Combina nombre y apellidos dinámicamente
 const fullName = computed(() =>
@@ -150,12 +150,9 @@ const fullName = computed(() =>
 
 const initials = computed(() => (initialsFor ? initialsFor(fullName.value) : '??'))
 
-// Filtrado temporal de opiniones con mockData (siguiente paso: conectar a MySQL)
-const myPosts = computed(() => (posts ? posts.filter(p => p.author === fullName.value && !p.anonymous) : []))
-
 const avgRating = computed(() => {
   if (myPosts.value.length === 0) return '—'
-  const total = myPosts.value.reduce((sum, p) => sum + p.rating, 0)
+  const total = myPosts.value.reduce((sum, p) => sum + Number(p.rating || 0), 0)
   return (total / myPosts.value.length).toFixed(1)
 })
 
@@ -193,12 +190,15 @@ onMounted(async () => {
   form.email = usuario.value.correo || ''
 
   try {
-    const [perfilRes, carrerasRes, itemsRes] = await Promise.all([
+    const [perfilRes, carrerasRes, itemsRes, reviewsRes] = await Promise.all([
       fetch('http://localhost:3000/api/users/perfil', {
         headers: { 'Authorization': `Bearer ${token}` }
       }),
       fetch('http://localhost:3000/api/users/carreras'),
       fetch('http://localhost:3000/api/users/mis-publicaciones', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+      fetch('http://localhost:3000/api/users/mis-resenas', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
     ])
@@ -213,6 +213,16 @@ onMounted(async () => {
 
     if (itemsRes.ok) {
       myItems.value = await itemsRes.json()
+    }
+
+    if (reviewsRes.ok) {
+      const listaResenas = await reviewsRes.json()
+      myPosts.value = listaResenas.map(r => ({
+        ...r,
+        rating: Number(r.rating),
+        anonymous: false,
+        date: 'Publicado'
+      }))
     }
 
     if (perfilRes.ok) {
@@ -324,12 +334,33 @@ async function deleteItem(id) {
   }
 }
 
+async function deleteReview(id) {
+  const token = sessionStorage.getItem('token')
+  try {
+    const response = await fetch(`http://localhost:3000/api/users/resenas/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      myPosts.value = myPosts.value.filter(post => post.id !== id)
+      animatedPosts.value = myPosts.value.length
+    } else {
+      alert(data.message || 'No se pudo eliminar la reseña')
+    }
+  } catch (error) {
+    console.error('Error al eliminar reseña:', error)
+    alert('Error de conexión con el servidor')
+  }
+}
+
 function logout() {
   sessionStorage.removeItem('token')
-  
-  // <-- AQUÍ AVISAMOS A VUE QUE SE CERRÓ SESIÓN -->
   clearUser()
-  
   router.push('/')
 }
 </script>

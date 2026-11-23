@@ -5,7 +5,9 @@ const { getProfile,
     getCarreras, 
     updateProfile,
     getMyPublications, 
-    deleteMyItem
+    deleteMyItem,
+    getMyReviews,
+    deleteMyReview
  } = require('../controllers/userController');
 const { verifyToken } = require('../middleware/authMiddleware');
 
@@ -16,5 +18,7 @@ router.put('/perfil', verifyToken, updateProfile);
 router.get('/carreras', getCarreras);
 router.get('/mis-publicaciones', verifyToken, getMyPublications);
 router.delete('/publicaciones/:id', verifyToken, deleteMyItem);
+router.get('/mis-resenas', verifyToken, getMyReviews);
+router.delete('/resenas/:id', verifyToken, deleteMyReview);
 
 module.exports = router;
