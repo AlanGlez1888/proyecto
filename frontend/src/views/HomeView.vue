@@ -131,6 +131,7 @@ async function publish() {
     return
   }
 
+  const token = sessionStorage.getItem('token')
   const payload = {
     ID_Alumno: currentUser.idAlumno,
     ID_Prof_Mat: draft.ID_Prof_Mat,
@@ -141,27 +142,33 @@ async function publish() {
   try {
     const response = await fetch('http://localhost:3000/api/resenas', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
       body: JSON.stringify(payload)
     })
 
-    if (!response.ok) throw new Error('Error al publicar en la base de datos')
+    const data = await response.json().catch(() => ({}))
 
-    const newPostData = await response.json()
+    if (!response.ok) {
+      throw new Error(data.message || 'Error al publicar en la base de datos')
+    }
+
     show('¡Tu opinión fue publicada!')
 
     const updatedPosts = await fetch('http://localhost:3000/api/resenas').then(r => r.json())
     posts.value = updatedPosts
 
-    justPostedId.value = newPostData.id || null
+    justPostedId.value = data.id || null
     setTimeout(() => { justPostedId.value = null }, 1600)
 
     draft.content = ''
     draft.ID_Prof_Mat = ''
-    draft.Puntaje = 0 // Actualizado para limpiar la variable correcta
+    draft.Puntaje = 0
   } catch (err) {
     console.error(err)
-    show('Ocurrió un error al publicar')
+    show(err.message || 'Ocurrió un error al publicar')
   }
 }
 

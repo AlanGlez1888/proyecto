@@ -29,7 +29,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { APP_NAME, APP_TAGLINE } from '../config.js'
 import AppLogo from '../components/AppLogo.vue'
-import { setUser } from '../data/currentUser.js' // <-- IMPORTACIÓN NUEVA
+import { setUser } from '../data/currentUser.js'
 
 const correo = ref('')
 const contrasena = ref('')
@@ -48,31 +48,32 @@ async function onSubmit() {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        correo: correo.value,        
-        contrasena: contrasena.value 
+        correo: correo.value,
+        contrasena: contrasena.value
       })
     })
 
     const data = await response.json()
 
-    console.log("Respuesta del login:", data);
-
     if (!response.ok) {
       throw new Error(data.message || 'Error al iniciar sesión')
     }
 
-    // Guardamos el token en sessionStorage
+    // Guardamos token y datos del usuario (incluyendo el rol) en sessionStorage
     sessionStorage.setItem('token', data.token)
-    
-    // <-- AQUÍ AVISAMOS A VUE DEL NUEVO USUARIO -->
+    sessionStorage.setItem('user', JSON.stringify(data.user))
+
+    // Actualizamos el estado global de Vue
     setUser(data.user)
 
-    if (data.user.rol === 'Administrador') {
-      router.push({ name: 'admin' }) 
+    // Redirigimos según el rol en minúsculas
+    const rol = (data.user?.rol || data.user?.Rol || 'alumno').toLowerCase()
+
+    if (rol === 'administrador' || rol === 'moderador') {
+      router.push({ name: 'admin' })
     } else {
       router.push({ name: 'home' })
     }
-
   } catch (err) {
     error.value = err.message
   } finally {

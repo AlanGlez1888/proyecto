@@ -4,8 +4,7 @@
       <span class="avatar">{{ initials }}</span>
       <div class="who">
         <span class="name">{{ firstName }}</span>
-        <!-- Mostramos el rol temporalmente en lugar de la carrera -->
-        <span class="career">{{ rolUsuario }}</span> 
+        <span class="career">{{ rolUsuario }}</span>
       </div>
     </div>
 
@@ -15,28 +14,30 @@
       </svg>
       Muro
     </router-link>
+
     <router-link to="/maestros" class="item" active-class="active">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
         <path d="M4 4h5a2 2 0 012 2v10a2 2 0 00-2-2H4V4zM16 4h-5a2 2 0 00-2 2v10a2 2 0 012-2h5V4z" />
       </svg>
       Materias
     </router-link>
+
     <router-link to="/marketplace" class="item" active-class="active">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
         <path d="M6 7h8l1 11H5L6 7zM8 7V5a2 2 0 114 0v2" />
       </svg>
       Marketplace
     </router-link>
+
     <router-link to="/amigos" class="item" active-class="active">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
         <path d="M7 9a3 3 0 100-6 3 3 0 000 6zM2 17c0-2.8 2.2-5 5-5s5 2.2 5 5M14.5 9a2.3 2.3 0 100-4.6M18 17c0-2.1-1.5-3.9-3.5-4.4" />
       </svg>
       Amigos
     </router-link>
-    
-    <!-- Validamos con el rol real de la BD -->
+
     <router-link
-      v-if="rolUsuario === 'Administrador' || rolUsuario === 'Moderador'"
+      v-if="esModeradorOAdmin"
       to="/admin"
       class="item"
       active-class="active"
@@ -53,11 +54,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { initialsFor } from '../utils/subjectColor.js'
 
-// Variables reactivas para guardar los datos
 const usuario = ref(null)
 const defaultName = 'Usuario'
 
-// Leemos el sessionStorage al cargar la barra lateral
 onMounted(() => {
   const userData = sessionStorage.getItem('user')
   if (userData) {
@@ -65,7 +64,6 @@ onMounted(() => {
   }
 })
 
-// Computados seguros usando nullish coalescing para evitar errores si está vacío
 const initials = computed(() => {
   const nombre = usuario.value?.nombreCompleto || defaultName
   return initialsFor ? initialsFor(nombre) : nombre.charAt(0)
@@ -76,13 +74,18 @@ const firstName = computed(() => {
   return nombre.split(' ')[0]
 })
 
+const esModeradorOAdmin = computed(() => {
+  const rol = (usuario.value?.rol || usuario.value?.Rol || '').toLowerCase()
+  return rol === 'administrador' || rol === 'moderador'
+})
+
 const rolUsuario = computed(() => {
-  return usuario.value?.rol || 'Alumno'
+  const rol = usuario.value?.rol || usuario.value?.Rol || 'alumno'
+  return rol.charAt(0).toUpperCase() + rol.slice(1).toLowerCase()
 })
 </script>
 
 <style scoped>
-/* TODO TU ESTILO SE QUEDA EXACTAMENTE IGUAL AQUÍ ABAJO */
 .sidebar {
   display: flex;
   flex-direction: column;

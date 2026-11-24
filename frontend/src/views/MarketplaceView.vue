@@ -30,17 +30,32 @@
         <article v-for="item in explorarItems" :key="item.id" class="item">
           <div class="item-bar" :style="{ background: colorForSubject(item.materia || 'General') }"></div>
           <div class="item-body">
-            <div class="item-top">
-              <span class="subject" :style="{ color: colorForSubject(item.materia || 'General') }">
-                {{ item.materia || 'General' }}
+            <div>
+              <div class="item-top">
+                <span class="subject" :style="{ color: colorForSubject(item.materia || 'General') }">
+                  {{ item.materia || 'General' }}
+                </span>
+              </div>
+              <h3>{{ item.descripcion }}</h3>
+              <p class="meta">{{ item.vendedor }}</p>
+              <span class="price">
+                {{ item.tipo === 'Venta' ? `$${item.costo} MXN` : 'Disponible en renta' }}
               </span>
+              <p v-if="item.ubicacion" class="meta location">📍 {{ item.ubicacion }}</p>
             </div>
-            <h3>{{ item.descripcion }}</h3>
-            <p class="meta">{{ item.vendedor }}</p>
-            <span class="price">
-              {{ item.tipo === 'Venta' ? `$${item.costo} MXN` : 'Disponible en renta' }}
-            </span>
-            <p v-if="item.ubicacion" class="meta">📍 {{ item.ubicacion }}</p>
+
+            <div class="explore-actions">
+              <button
+                type="button"
+                class="btn-report"
+                @click="reportarArticulo(item.id)"
+              >
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 3v14M4 4h10l-1.5 3.5L14 11H4" />
+                </svg>
+                Reportar
+              </button>
+            </div>
           </div>
         </article>
       </div>
@@ -90,16 +105,18 @@
         <article v-for="item in misPublicaciones" :key="item.id" class="item my-item">
           <div class="item-bar" :style="{ background: colorForSubject(item.materia || 'General') }"></div>
           <div class="item-body">
-            <div class="item-top">
-              <span class="subject" :style="{ color: colorForSubject(item.materia || 'General') }">
-                {{ item.materia || 'General' }}
+            <div>
+              <div class="item-top">
+                <span class="subject" :style="{ color: colorForSubject(item.materia || 'General') }">
+                  {{ item.materia || 'General' }}
+                </span>
+                <span class="badge">{{ item.tipo }}</span>
+              </div>
+              <h3>{{ item.descripcion }}</h3>
+              <span class="price">
+                {{ item.tipo === 'Venta' ? `$${item.costo} MXN` : 'Renta' }}
               </span>
-              <span class="badge">{{ item.tipo }}</span>
             </div>
-            <h3>{{ item.descripcion }}</h3>
-            <span class="price">
-              {{ item.tipo === 'Venta' ? `$${item.costo} MXN` : 'Renta' }}
-            </span>
             
             <!-- Botones de Acción para Mis Publicaciones -->
             <div class="actions mt-2">
@@ -130,7 +147,7 @@ const { show } = useToast()
 const currentUser = JSON.parse(sessionStorage.getItem('user') || '{}')
 
 // Estado de navegación
-const currentTab = ref('explorar') // 'explorar' | 'mis-publicaciones'
+const currentTab = ref('explorar')
 const showForm = ref(false)
 const editandoId = ref(null)
 
@@ -144,8 +161,8 @@ const typeOptions = [
 ]
 
 // Datos
-const items = ref([]) // Todas las publicaciones
-const misPublicaciones = ref([]) // Solo las del usuario
+const items = ref([])
+const misPublicaciones = ref([])
 const materias = ref([])
 const cargando = ref(true)
 const cargandoMisPubs = ref(false)
@@ -159,12 +176,10 @@ const draft = reactive({
   telContacto: ''
 })
 
-// Cargar datos iniciales
 onMounted(async () => {
   await cargarMarketplace()
 })
 
-// Detectar cuando cambiamos de pestaña para cargar "Mis Publicaciones" si es necesario
 watch(currentTab, async (newTab) => {
   if (newTab === 'mis-publicaciones' && misPublicaciones.value.length === 0) {
     await cargarMisPublicaciones()
@@ -250,25 +265,24 @@ async function savePost() {
       })
     })
 
-    if (!response.ok) throw new Error('Error al guardar')
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.message || 'Error al guardar')
 
     show(editandoId.value ? '¡Cambios guardados!' : '¡Artículo publicado!')
     
-    // Recargar listas
     await cargarMisPublicaciones()
     await cargarMarketplace()
 
-    // Limpiar
     cancelarEdicion()
     showForm.value = false
   } catch (err) {
     console.error(err)
-    show('Error al guardar el artículo')
+    show(err.message || 'Error al guardar el artículo')
   }
 }
 
 async function eliminarArticulo(id) {
-  if (!confirm('¿Seguro que deseas eliminar esta publicación?')) return;
+  if (!confirm('¿Seguro que deseas eliminar esta publicación?')) return
 
   try {
     const response = await fetch(`http://localhost:3000/api/marketplace/${id}?idAlumno=${currentUser.idAlumno}`, {
@@ -286,7 +300,37 @@ async function eliminarArticulo(id) {
   }
 }
 
-// Filtro para explorar (excluye las del usuario activo)
+async function reportarArticulo(idPub) {
+  const motivo = prompt('¿Por qué deseas reportar este artículo? (Ej. Producto prohibido, estafa, spam)')
+  if (!motivo || !motivo.trim()) return
+
+  const token = sessionStorage.getItem('token')
+  if (!token) {
+    show('Debes iniciar sesión para reportar publicaciones.')
+    return
+  }
+
+  try {
+    const response = await fetch('http://localhost:3000/api/admin/reportes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        id_pub: idPub,
+        motivo: motivo.trim()
+      })
+    })
+
+    const data = await response.json()
+    show(data.message || 'Reporte enviado correctamente.')
+  } catch (error) {
+    console.error('Error al reportar artículo:', error)
+    show('Error de conexión con el servidor.')
+  }
+}
+
 const explorarItems = computed(() => {
   const q = query.value.trim().toLowerCase()
   return items.value.filter(item => {
@@ -304,7 +348,6 @@ const explorarItems = computed(() => {
 .page.wide { max-width: 900px; }
 .lede { color: var(--slate); margin-top: 0.4rem; }
 
-/* Navegación por pestañas */
 .main-tabs {
   display: flex;
   gap: 1rem;
@@ -406,6 +449,8 @@ const explorarItems = computed(() => {
 }
 
 .item {
+  display: flex;
+  flex-direction: column;
   background: var(--white);
   border-radius: 10px;
   overflow: hidden;
@@ -414,14 +459,49 @@ const explorarItems = computed(() => {
 }
 .item:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(13, 27, 62, 0.12); }
 .item-bar { height: 5px; }
-.item-body { padding: 1rem 1.1rem 1.2rem; }
+.item-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1rem 1.1rem 1.2rem;
+}
 .item-top { display: flex; align-items: center; justify-content: space-between; }
 .item-body h3 { font-family: var(--font-display); font-size: 1rem; margin: 0.3rem 0 0.3rem; color: var(--ink); }
 .subject { font-size: 0.75rem; font-weight: 600; }
 .meta { color: var(--slate); font-size: 0.85rem; margin: 0 0 0.6rem; }
+.meta.location { margin-top: 0.4rem; margin-bottom: 0; }
 .price { font-weight: 600; color: var(--navy); }
 
-/* Estilos extra para Mis Publicaciones */
+.explore-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.9rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--line);
+}
+
+.btn-report {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--slate);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.btn-report svg { width: 12px; height: 12px; }
+.btn-report:hover {
+  border-color: #d97706;
+  color: #d97706;
+}
+
 .badge {
   font-size: 0.7rem;
   background: var(--gray-200);
