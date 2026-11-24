@@ -1,36 +1,66 @@
 <template>
   <section class="page">
-    <header class="header" v-if="teacher">
-      <span class="badge" :style="{ background: colorForSubject(teacher.subject) }">
-        {{ initialsFor(teacher.name) }}
-      </span>
-      <div>
-        <h1>{{ teacher.name }}</h1>
-        <p class="subject" :style="{ color: colorForSubject(teacher.subject) }">{{ teacher.subject }}</p>
-        <RatingStars :rating="teacher.rating" />
-      </div>
-    </header>
+    <p v-if="loading" class="empty">Cargando perfil del maestro...</p>
 
-    <h2>Comentarios</h2>
-    <div class="feed">
-      <PostCard v-for="post in comments" :key="post.id" :post="post" />
-      <EmptyState v-if="comments.length === 0" message="Aún no hay comentarios sobre este maestro." />
-    </div>
+    <template v-else-if="teacher">
+      <header class="header">
+        <span class="badge" :style="{ background: colorForSubject(teacher.subject) }">
+          {{ initialsFor(teacher.name) }}
+        </span>
+        <div>
+          <h1>{{ teacher.name }}</h1>
+          <p class="subject" :style="{ color: colorForSubject(teacher.subject) }">{{ teacher.subject }}</p>
+          <RatingStars :rating="Number(teacher.rating)" />
+        </div>
+      </header>
+
+      <h2>Comentarios</h2>
+      <div class="feed">
+        <PostCard v-for="post in comments" :key="post.id" :post="post" />
+        <EmptyState v-if="comments.length === 0" message="Aún no hay comentarios sobre este maestro." />
+      </div>
+    </template>
+
+    <EmptyState v-else message="No encontramos a este maestro." />
   </section>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import RatingStars from '../components/RatingStars.vue'
 import PostCard from '../components/PostCard.vue'
 import EmptyState from '../components/EmptyState.vue'
-import { teachers, posts } from '../data/mockData.js'
 import { colorForSubject, initialsFor } from '../utils/subjectColor.js'
 
 const props = defineProps({ id: String })
 
-const teacher = computed(() => teachers.find(t => String(t.id) === props.id))
-const comments = computed(() => posts.filter(p => p.teacher === teacher.value?.name))
+const teacher = ref(null)
+const comments = ref([])
+const loading = ref(true)
+
+async function fetchMaestroDetalle(id) {
+  loading.value = true
+  try {
+    const response = await fetch(`http://localhost:3000/api/resenas/maestros/${id}`)
+    if (!response.ok) throw new Error('Maestro no encontrado')
+    const data = await response.json()
+    teacher.value = data.teacher
+    comments.value = data.comments
+  } catch (error) {
+    console.error('Error al cargar detalle del maestro:', error)
+    teacher.value = null
+    comments.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => fetchMaestroDetalle(props.id))
+
+// Por si cambias de un maestro a otro sin salir de la vista
+watch(() => props.id, (newId) => {
+  if (newId) fetchMaestroDetalle(newId)
+})
 </script>
 
 <style scoped>

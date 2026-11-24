@@ -5,44 +5,63 @@
       <input v-model="query" type="text" placeholder="Nombre del maestro" />
       <select v-model="subject">
         <option value="">Todas las materias</option>
-        <option v-for="s in subjects" :key="s">{{ s }}</option>
+        <option v-for="s in subjects" :key="s" :value="s">{{ s }}</option>
       </select>
     </div>
 
-    <ul class="results">
-      <li v-for="t in filtered" :key="t.id">
-        <router-link :to="`/maestros/${t.id}`" class="row">
-          <span class="badge" :style="{ background: colorForSubject(t.subject) }">
-            {{ initialsFor(t.name) }}
-          </span>
-          <span class="info">
-            <span class="name">{{ t.name }}</span>
-            <span class="subject" :style="{ color: colorForSubject(t.subject) }">{{ t.subject }}</span>
-          </span>
-          <RatingStars :rating="t.rating" />
-        </router-link>
-      </li>
-    </ul>
-    <EmptyState v-if="filtered.length === 0" message="No encontramos maestros con esos filtros." />
+    <p v-if="loading" class="empty">Cargando maestros...</p>
+
+    <template v-else>
+      <ul class="results">
+        <li v-for="t in filtered" :key="t.id">
+          <router-link :to="`/maestros/${t.id}`" class="row">
+            <span class="badge" :style="{ background: colorForSubject(t.subject) }">
+              {{ initialsFor(t.name) }}
+            </span>
+            <span class="info">
+              <span class="name">{{ t.name }}</span>
+              <span class="subject" :style="{ color: colorForSubject(t.subject) }">{{ t.subject }}</span>
+            </span>
+            <RatingStars :rating="Number(t.rating)" />
+          </router-link>
+        </li>
+      </ul>
+      <EmptyState v-if="filtered.length === 0" message="No encontramos maestros con esos filtros." />
+    </template>
   </section>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import RatingStars from '../components/RatingStars.vue'
 import EmptyState from '../components/EmptyState.vue'
-import { teachers } from '../data/mockData.js'
 import { colorForSubject, initialsFor } from '../utils/subjectColor.js'
 
 const route = useRoute()
 const query = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const subject = ref('')
+const teachers = ref([])
+const loading = ref(true)
 
-const subjects = [...new Set(teachers.map(t => t.subject))]
+onMounted(async () => {
+  try {
+    const response = await fetch('http://localhost:3000/api/resenas/maestros')
+    if (!response.ok) throw new Error('Error al cargar maestros')
+    teachers.value = await response.json()
+  } catch (error) {
+    console.error('Error al obtener maestros:', error)
+  } finally {
+    loading.value = false
+  }
+})
+
+const subjects = computed(() =>
+  [...new Set(teachers.value.map(t => t.subject))].sort()
+)
 
 const filtered = computed(() =>
-  teachers.filter(t =>
+  teachers.value.filter(t =>
     t.name.toLowerCase().includes(query.value.toLowerCase()) &&
     (subject.value === '' || t.subject === subject.value)
   )

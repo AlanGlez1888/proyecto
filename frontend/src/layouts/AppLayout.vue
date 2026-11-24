@@ -4,7 +4,6 @@
     <div class="body">
       <LeftSidebar />
       <main class="main"><slot /></main>
-      <RightSidebar />
     </div>
   </div>
 </template>
@@ -12,7 +11,6 @@
 <script setup>
 import TopBar from '../components/TopBar.vue'
 import LeftSidebar from '../components/LeftSidebar.vue'
-import RightSidebar from '../components/RightSidebar.vue'
 </script>
 
 <style scoped>
@@ -27,7 +25,7 @@ import RightSidebar from '../components/RightSidebar.vue'
 .body {
   flex: 1;
   display: grid;
-  grid-template-columns: 200px 1fr 240px;
+  grid-template-columns: 200px 1fr;
 }
 .main { min-width: 0; }
 
